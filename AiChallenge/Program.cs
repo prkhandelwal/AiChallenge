@@ -53,6 +53,23 @@ namespace AiChallenge
             Console.WriteLine("The model is saved to {0}", _modelPath);
         }
 
+        private static void Evaluate(MLContext mlContext, ITransformer model)
+        {
+            
+            //throw new NotImplementedException();
+            IDataView dataView = _textLoader.Read(_testDataPath);
+            Console.WriteLine("Evaluating Model with test data");
+            var predictions = model.Transform(dataView);
+            var metrics = mlContext.BinaryClassification.Evaluate(predictions, "Label");
+            Console.WriteLine();
+            Console.WriteLine("Model quality metrics evaluation");
+            Console.WriteLine("--------------------------------");
+            Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
+            Console.WriteLine($"Auc: {metrics.Auc:P2}");
+            Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
+            Console.WriteLine("=============== End of model evaluation ===============");
+        }
+
         private static ITransformer Train(MLContext mlContext, string TrainDataPath)
         {
             var data = _textLoader.Read(TrainDataPath);
