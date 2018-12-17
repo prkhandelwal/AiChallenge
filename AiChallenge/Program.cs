@@ -38,6 +38,8 @@ namespace AiChallenge
 
             var model = Train(mlContext, _trainDataPath);
 
+            Evaluate(mlContext, model);
+
             SaveModelAsFile(mlContext, model);
 
             Console.WriteLine("Done!");
