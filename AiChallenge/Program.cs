@@ -4,6 +4,7 @@ using Microsoft.ML.Runtime.Data;
 using Microsoft.ML.Transforms.Text;
 using System;
 using System.IO;
+using System.Linq;
 
 namespace AiChallenge
 {
@@ -38,7 +39,7 @@ namespace AiChallenge
 
             var model = Train(mlContext, _trainDataPath);
 
-            Evaluate(mlContext, model);
+            //Evaluate(mlContext, model);
 
             SaveModelAsFile(mlContext, model);
 
@@ -101,24 +102,33 @@ namespace AiChallenge
 
                 // NLP pipeline 3: bag of tri-character sequences with TF-IDF weighting.
                 .Append(mlContext.Transforms.Text.TokenizeCharacters("PassageText", "PassageChars"))
-                .Append(new NgramExtractingEstimator(mlContext, "PassageChars", "BagOfTrichar", ngramLength: 3, weighting: NgramExtractingEstimator.WeightingCriteria.TfIdf))
+                .Append(new NgramExtractingEstimator(mlContext, "PassageChars", "BagOfTrichar", ngramLength: 3, weighting: NgramExtractingEstimator.WeightingCriteria.TfIdf));
 
                 // NLP pipeline 4: word embeddings.
-                .Append(mlContext.Transforms.Text.TokenizeWords("NormalizedQuery", "TokenizedQuery"))
-                .Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedQuery", "QueryEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.GloVeTwitter25D))
+                //.Append(mlContext.Transforms.Text.TokenizeWords("NormalizedQuery", "TokenizedQuery"))
+                //.Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedQuery", "QueryEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.GloVeTwitter25D))
 
-                .Append(mlContext.Transforms.Text.TokenizeWords("NormalizedPassage", "TokenizedPassage"))
-                .Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedPassage", "PassageEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.FastTextWikipedia300D));
+                //.Append(mlContext.Transforms.Text.TokenizeWords("NormalizedPassage", "TokenizedPassage"))
+                //.Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedPassage", "PassageEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.FastTextWikipedia300D));
 
             pipeline.Append(mlContext.Transforms.DropColumns(new string[] {"QueryId","PassageID"}));
 
-            pipeline.Append(mlContext.BinaryClassification.Trainers.FastTree(numLeaves: 100, numTrees: 100, minDatapointsInLeaves: 20));
+            pipeline.Append(mlContext.BinaryClassification.Trainers.FastTree(numLeaves: 50, numTrees: 50, minDatapointsInLeaves: 20));
+
+            //Console.WriteLine("Splitting Dataset");
 
             Console.WriteLine("Crating and Training the model...");
 
             var model = pipeline.Fit(data);
 
             Console.WriteLine("Completed Training");
+
+            //Cross Validation
+            Console.WriteLine(" Starting Cross Validation");
+
+            var cvResults = mlContext.BinaryClassification.CrossValidate(data,pipeline,numFolds:5);
+            var microAccuracies = cvResults.Select(r => r.metrics.Accuracy);
+            Console.WriteLine(microAccuracies.Average());
 
             return model;
         }
