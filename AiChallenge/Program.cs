@@ -115,20 +115,35 @@ namespace AiChallenge
 
             pipeline.Append(mlContext.BinaryClassification.Trainers.FastTree(numLeaves: 50, numTrees: 50, minDatapointsInLeaves: 20));
 
-            //Console.WriteLine("Splitting Dataset");
+            //Splitting data
+            Console.WriteLine("Splitting Dataset");
+            // Split the data 80:20 into train and test sets, train and evaluate.
+            var (trainData, testData) = mlContext.BinaryClassification.TrainTestSplit(data, testFraction: 0.2);
 
             Console.WriteLine("Crating and Training the model...");
 
-            var model = pipeline.Fit(data);
+            var model = pipeline.Fit(trainData);
 
             Console.WriteLine("Completed Training");
 
-            //Cross Validation
-            Console.WriteLine(" Starting Cross Validation");
+            //Evaluation
+            //Console.WriteLine("Starting Evaluation");
+            //var predictions = model.Transform(testData);
+            //var metrics = mlContext.BinaryClassification.Evaluate(predictions,"Label");
+            //Console.WriteLine();
+            //Console.WriteLine("Model quality metrics evaluation");
+            //Console.WriteLine("--------------------------------");
+            //Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
+            //Console.WriteLine($"Auc: {metrics.Auc:P2}");
+            //Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
+            //Console.WriteLine("=============== End of model evaluation ===============");
 
-            var cvResults = mlContext.BinaryClassification.CrossValidate(data,pipeline,numFolds:5);
-            var microAccuracies = cvResults.Select(r => r.metrics.Accuracy);
-            Console.WriteLine(microAccuracies.Average());
+            //Cross Validation
+            //Console.WriteLine("Starting Cross Validation");
+
+            //var cvResults = mlContext.BinaryClassification.CrossValidate(data,pipeline,numFolds:5);
+            //var microAccuracies = cvResults.Select(r => r.metrics.Accuracy);
+            //Console.WriteLine(microAccuracies.Average());
 
             return model;
         }
