@@ -26,7 +26,7 @@ namespace AiChallenge
             _textLoader = mlContext.Data.TextReader(new TextLoader.Arguments()
             {
                 Separator = "tab",
-                HasHeader = true,
+                HasHeader = false,
                 Column = new[]
                 {
                     new TextLoader.Column("QueryId",DataKind.Text,0),
@@ -41,7 +41,7 @@ namespace AiChallenge
 
             //Evaluate(mlContext, model);
 
-            SaveModelAsFile(mlContext, model);
+            
 
             Console.WriteLine("Done!");
             Console.ReadLine();
@@ -77,6 +77,13 @@ namespace AiChallenge
         {
             var data = _textLoader.Read(TrainDataPath);
 
+            //Splitting data
+            Console.WriteLine("Splitting Dataset");
+            // Split the data 70:30 into train and test sets, train and evaluate.
+            var (LeftData, TakenData) = mlContext.BinaryClassification.TrainTestSplit(data, testFraction: 0.3);
+
+            var (trainData, testData) = mlContext.BinaryClassification.TrainTestSplit(TakenData, testFraction: 0.2);
+
             var pipeline =
 
                 //Featurize Query
@@ -85,58 +92,73 @@ namespace AiChallenge
                 //Featurize Passage
                 .Append(mlContext.Transforms.Text.FeaturizeText("PassageText", "PassageFeatures"))
 
-                //Normalize Query
-                .Append(mlContext.Transforms.Text.NormalizeText("Query", "NormalizedQuery"))
+                .Append(mlContext.Transforms.Concatenate("Features", "QueryFeatures", "PassageFeatures"))
 
-                //Normalize Passage
-                .Append(mlContext.Transforms.Text.NormalizeText("PassageText", "NormalizedPassage"))
+                .Append(mlContext.BinaryClassification.Trainers.FastTree());
 
-                // NLP pipeline 1: bag of words.
-                .Append(new WordBagEstimator(mlContext, "NormalizedQuery", "QueryBOW"))
-                .Append(new WordBagEstimator(mlContext, "NormalizedPassage", "PassageBOW"))
+            ////Normalize Query
+            //.Append(mlContext.Transforms.Text.NormalizeText("Query", "NormalizedQuery"))
 
-                // NLP pipeline 2: bag of bigrams, using hashes instead of dictionary indices.
-                //BOB = Bag of Bigrams
-                .Append(new WordHashBagEstimator(mlContext, "NormalizedQuery", "QueryBOB", ngramLength: 2, allLengths: false))
-                .Append(new WordHashBagEstimator(mlContext, "NormalizedPassage", "PassageBOB", ngramLength: 2, allLengths: false))
+            ////Normalize Passage
+            //.Append(mlContext.Transforms.Text.NormalizeText("PassageText", "NormalizedPassage"))
 
-                // NLP pipeline 3: bag of tri-character sequences with TF-IDF weighting.
-                .Append(mlContext.Transforms.Text.TokenizeCharacters("PassageText", "PassageChars"))
-                .Append(new NgramExtractingEstimator(mlContext, "PassageChars", "BagOfTrichar", ngramLength: 3, weighting: NgramExtractingEstimator.WeightingCriteria.TfIdf));
+            //// NLP pipeline 1: bag of words.
+            //.Append(new WordBagEstimator(mlContext, "NormalizedQuery", "QueryBOW"))
+            //.Append(new WordBagEstimator(mlContext, "NormalizedPassage", "PassageBOW"))
 
-                // NLP pipeline 4: word embeddings.
-                //.Append(mlContext.Transforms.Text.TokenizeWords("NormalizedQuery", "TokenizedQuery"))
-                //.Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedQuery", "QueryEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.GloVeTwitter25D))
+            //// NLP pipeline 2: bag of bigrams, using hashes instead of dictionary indices.
+            ////BOB = Bag of Bigrams
+            //.Append(new WordHashBagEstimator(mlContext, "NormalizedQuery", "QueryBOB", ngramLength: 2, allLengths: false))
+            //.Append(new WordHashBagEstimator(mlContext, "NormalizedPassage", "PassageBOB", ngramLength: 2, allLengths: false))
 
-                //.Append(mlContext.Transforms.Text.TokenizeWords("NormalizedPassage", "TokenizedPassage"))
-                //.Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedPassage", "PassageEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.FastTextWikipedia300D));
+            //// NLP pipeline 3: bag of tri-character sequences with TF-IDF weighting.
+            //.Append(mlContext.Transforms.Text.TokenizeCharacters("PassageText", "PassageChars"))
+            //.Append(new NgramExtractingEstimator(mlContext, "PassageChars", "BagOfTrichar", ngramLength: 3, weighting: NgramExtractingEstimator.WeightingCriteria.TfIdf));
 
-            pipeline.Append(mlContext.Transforms.DropColumns(new string[] {"QueryId","PassageID"}));
+            // NLP pipeline 4: word embeddings.
+            //.Append(mlContext.Transforms.Text.TokenizeWords("NormalizedQuery", "TokenizedQuery"))
+            //.Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedQuery", "QueryEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.GloVeTwitter25D))
 
-            pipeline.Append(mlContext.BinaryClassification.Trainers.FastTree(numLeaves: 50, numTrees: 50, minDatapointsInLeaves: 20));
+            //.Append(mlContext.Transforms.Text.TokenizeWords("NormalizedPassage", "TokenizedPassage"))
+            //.Append(mlContext.Transforms.Text.ExtractWordEmbeddings("TokenizedPassage", "PassageEmbeddings", WordEmbeddingsExtractingTransformer.PretrainedModelKind.FastTextWikipedia300D));
 
-            //Splitting data
-            Console.WriteLine("Splitting Dataset");
-            // Split the data 80:20 into train and test sets, train and evaluate.
-            var (trainData, testData) = mlContext.BinaryClassification.TrainTestSplit(data, testFraction: 0.2);
+            //pipeline.Append(mlContext.Transforms.DropColumns(new string[] {"QueryId","PassageID"}));
 
-            Console.WriteLine("Crating and Training the model...");
+            //var transformedData = pipeline.Fit(trainData).Transform(trainData);
+
+            //pipeline.Append(mlContext.BinaryClassification.Trainers.FastTree(numLeaves: 50, numTrees: 50, minDatapointsInLeaves: 20));
+
+
+
+            //Console.WriteLine("Transforming Data...");
+            //var transformedData = pipeline.Fit(trainData).Transform(trainData);
+
+
+            //var pipeline2 = mlContext.BinaryClassification.Trainers.FastTree(numLeaves: 50, numTrees: 50, minDatapointsInLeaves: 20);
+
+            Console.WriteLine("Creating and Training the model...");
 
             var model = pipeline.Fit(trainData);
+
+            SaveModelAsFile(mlContext, model);
 
             Console.WriteLine("Completed Training");
 
             //Evaluation
-            //Console.WriteLine("Starting Evaluation");
-            //var predictions = model.Transform(testData);
-            //var metrics = mlContext.BinaryClassification.Evaluate(predictions,"Label");
-            //Console.WriteLine();
-            //Console.WriteLine("Model quality metrics evaluation");
-            //Console.WriteLine("--------------------------------");
-            //Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
-            //Console.WriteLine($"Auc: {metrics.Auc:P2}");
-            //Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
-            //Console.WriteLine("=============== End of model evaluation ===============");
+            Console.WriteLine("Starting Evaluation");
+            var predictions = model.Transform(testData);
+            var metrics = mlContext.BinaryClassification.Evaluate(predictions, "Label");
+            Console.WriteLine();
+            Console.WriteLine("Model quality metrics evaluation");
+            Console.WriteLine("--------------------------------");
+            Console.WriteLine($"Accuracy: {metrics.Accuracy:P2}");
+            Console.WriteLine($"Auc: {metrics.Auc:P2}");
+            Console.WriteLine($"Positive Recall: {metrics.PositiveRecall}"); // Correctly predicted positive instances among all positive instances.
+            Console.WriteLine($"Positive Precision: {metrics.PositivePrecision}"); //Correctly predicted Positive instances among all Positives Predictions
+            Console.WriteLine($"Negetive Recall: {metrics.NegativeRecall}");
+            Console.WriteLine($"Negetive Precision: {metrics.NegativePrecision}");
+            Console.WriteLine($"F1Score: {metrics.F1Score:P2}");
+            Console.WriteLine("=============== End of model evaluation ===============");
 
             //Cross Validation
             //Console.WriteLine("Starting Cross Validation");
